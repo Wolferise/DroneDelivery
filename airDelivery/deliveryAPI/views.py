@@ -1,10 +1,8 @@
-from django.shortcuts import render
 from django.http import HttpResponse
 import json
-from .models import ORDER, BPLA
+from .models import ORDER, BPLA, HUB
 import datetime
 from .requests import calculate_order_route, send_order_to_first_hub
-# Create your views here.
 
 
 def index(request):
@@ -15,27 +13,21 @@ def manage_orders(request):
     if request.method == "POST":  # Обработка запроса на создание нового заказа
         new_order_data = request.POST
         # Запрос на построение маршрута
-        track = calculate_order_route(new_order_data.weight, new_order_data.first_hub, new_order_data.last_hub)
+        math_module_answer = calculate_order_route(new_order_data.weight, new_order_data.first_hub, new_order_data.last_hub)
+        track = str(math_module_answer)
         # Запись в БД
         new_order = ORDER(weight=new_order_data.weight,
-                          cur_departure=1,  # Удалить из БД
-                          cur_destination=2,  # Удалить из БД
-                          bpla=3,  # Удалить из БД
+                          cur_departure=new_order_data.first_hub,
+                          cur_destination=math_module_answer["Product_path"][1]["HubID"],
+                          bpla=None,
                           track=track,
                           start_time=datetime.now())
         new_order.save()
         # Передача заказа в Хаб
         send_order_to_first_hub(new_order_data.first_hub, new_order.id)
         return HttpResponse("<h1>Success</h1>")
-    elif request.method == "GET":  # Обработка запроса на получение данных по всем заказам
-        # Взаимодействие с БД
-        db_orders = ORDER.objects.all()
-        orders_data = {
-            'some_var_1': 'foo',
-            'some_var_2': 'bar',
-        }
-        orders = json.dumps(orders_data)
-        return HttpResponse(orders, content_type='application/json')
+    else:
+        return HttpResponse("<h1>Inappropriate request type.</h1>")
 
 
 def manage_drone(request, drone_id):
@@ -47,13 +39,55 @@ def manage_drone(request, drone_id):
         drone.longitude = drone_data.longitude
         drone.azimuth = drone_data.azimuth
         drone.save()
+        return HttpResponse("<h1>Success</h1>")
 
 
-def order_update(request, order_id):
+def update_order(request, order_id):
     if request.method == "UPDATE":
-        pass
-
+        order_data = request.UPDATE
+        order = ORDER.objects.filter(id=order_id)
+        order.bpla = order_data.bpla
+        order.cur_departure = order_data.hub_id
+        if order_data.dest_hub_id is not None:
+            order.cur_destination = order_data.dest_hub_id
+        # Добавить информацию об окончании заказа
+        order.save()
+        return HttpResponse("<h1>Success</h1>")
+    elif request.method == "GET":
+        order = ORDER.objects.filter(id=order_id)
+        order_json = {"weight": order.weight,
+                      "cur_departure": order.cur_departure,
+                      "cur_destination": order.cur_destination,
+                      "bpla": order.bpla,
+                      "track": order.track,
+                      "start_time": order.start_time}
+        order_json = json.dumps(order_json)
+        return HttpResponse(order_json, content_type="application/json")
 
 def get_drone_locations(request):
     if request.method == "GET":
-        pass
+        screen_data = request.GET
+        drones = BPLA.objects.filter(latitude__gte=screen_data.less_latitude
+                                     ).filter(latitude__lte=screen_data.more_latitude
+                                     ).filter(longitude__gte=screen_data.less_longitude
+                                     ).filter(longitude__lte=screen_data.more_longitude)
+        drone_data = dict()
+        for drone in drones:
+            drone_data.update({drone.id: [drone.latitude, drone.longitude, drone.speed, drone.azimuth]})
+        drone_data = json.dumps(drone_data)
+        return HttpResponse(drone_data, content_type="application/json")
+
+
+def manage_graph(request):
+    if request.method == "POST":
+        new_hub_data = request.POST
+        new_hub = HUB(type=new_hub_data.type,
+                      workload=new_hub_data.workload,
+                      latitude=new_hub_data.latitude,
+                      longitude=new_hub_data.longitude)
+        new_hub.save()
+        return HttpResponse("<h1>Success</h1>")
+    elif request.method == "DELETE":
+        hub_data = request.DELETE
+        HUB.objects.filter(id=hub_data.hub_id).delete()
+        return HttpResponse("<h1>Success</h1>")

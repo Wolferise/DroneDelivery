@@ -2,6 +2,7 @@ from django.db import models
 
 # Create your models here.
 
+
 class BPLA(models.Model):
     board_number = models.CharField(max_length=10)
     type = models.CharField(max_length=10)
@@ -14,6 +15,7 @@ class BPLA(models.Model):
     class Meta:
         managed = True
         db_table = 'bpla'
+
 
 class HUB(models.Model):
     type = models.CharField(max_length=10)
