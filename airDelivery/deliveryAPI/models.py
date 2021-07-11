@@ -22,6 +22,7 @@ class HUB(models.Model):
     workload = models.FloatField(blank=True, null=True)
     latitude = models.CharField(max_length=15, null=True)
     longitude = models.CharField(max_length=15, null=True)
+    hub_id = models.IntegerField(blank=True, null=True)
 
     class Meta:
         managed = True

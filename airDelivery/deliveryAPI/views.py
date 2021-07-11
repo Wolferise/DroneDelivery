@@ -1,81 +1,50 @@
 from django.http import HttpResponse
 import json
 from .models import ORDER, BPLA, HUB
-import datetime
-import math
-from .requests import calculate_order_route, send_order_to_first_hub
+import ast
+from . import microservice_messages as messages
 from django.views.decorators.csrf import csrf_exempt
-
-
-def index(request):
-    if request.method == "GET":  # Обработка запроса на создание нового заказа
-        new_order_data = request.GET
-        print(new_order_data)
-        # Запрос на построение маршрута
-        math_module_answer = json.loads(calculate_order_route(new_order_data['weight'], new_order_data['first_hub'],
-                                                   new_order_data['last_hub']).content)
-        track = str(math_module_answer)
-        # Запись в БД
-        drone_id = add_drone(new_order_data['first_hub'], math_module_answer["Product_path"][1]["HubID"])
-        new_order = ORDER(weight=new_order_data['weight'],
-                          cur_departure=new_order_data['first_hub'],
-                          cur_destination=math_module_answer["Product_path"][1]["HubID"],
-                          bpla=drone_id,
-                          track=track,
-                          start_time=datetime.datetime.now())
-        new_order.save()
-        # Передача заказа в Хаб
-        send_order_to_first_hub(new_order_data.first_hub, new_order.id)
-        add_drone()
-        return HttpResponse("<h1>Success</h1>")
-    else:
-        return HttpResponse("<h1>Inappropriate request type.</h1>")
+from . import db_interactions as database
 
 
 def manage_orders(request):
-    if request.method == "POST":  # Обработка запроса на создание нового заказа
-        new_order_data = request.POST
-        # Запрос на построение маршрута
-        math_module_answer = calculate_order_route(new_order_data.weight, new_order_data.first_hub, new_order_data.last_hub)
-        track = str(math_module_answer)
-        # Запись в БД
-        new_order = ORDER(weight=new_order_data.weight,
-                          cur_departure=new_order_data.first_hub,
-                          cur_destination=math_module_answer["Product_path"][1]["HubID"],
-                          bpla=None,
-                          track=track,
-                          start_time=datetime.now())
-        new_order.save()
-        # Передача заказа в Хаб
-        send_order_to_first_hub(new_order_data.first_hub, new_order.id)
-        return HttpResponse("<h1>Success</h1>")
-    else:
-        return HttpResponse("<h1>Inappropriate request type.</h1>")
+
+    # Добавление нового заказа
+    if request.method == "POST":
+        order_params = request.GET
+
+        # Построение маршрута заказа математическим модулем
+        track = messages.get_order_track_from_math_module(order_params['weight'],
+                                                          order_params['first_hub'],
+                                                          order_params['last_hub'])
+
+        # Запись заказа в БД
+        new_order = database.create_order(order_params, track)
+
+        # Передача данных о заказе для дальнейшей обработки другими модулями
+        messages.start_shipping_message(new_order.cur_departure, new_order.id, new_order.track)
+        return HttpResponse("<h1>Successfully started shipping.</h1>")
 
 
-def manage_drone(request, drone_id):
-    if request.method == "UPDATE":
-        drone_data = request.UPDATE
-        drone = BPLA.objects.filter(id=drone_id)
-        drone.speed = drone_data.speed
-        drone.latitude = drone_data.latitude
-        drone.longitude = drone_data.longitude
-        drone.azimuth = drone_data.azimuth
-        drone.save()
-        return HttpResponse("<h1>Success</h1>")
+@csrf_exempt
+def manage_single_order(request, order_id):
 
-
-def update_order(request, order_id):
-    if request.method == "UPDATE":
-        order_data = request.UPDATE
-        order = ORDER.objects.filter(id=order_id)
-        order.bpla = order_data['bpla']
-        order.cur_departure = order_data['dep_hub_id']
+    # Обновление данных по конкретному заказу
+    if request.method == "PUT":
+        order_data = ast.literal_eval(json.loads(request.read().decode('utf-8')))
+        try:
+            order = ORDER.objects.get(id=order_id)
+        except IndexError:
+            for order in ORDER.objects.all():
+                print(order.id)
+        order.bpla = BPLA.objects.get(board_number=str(order_data['bpla']))
+        order.cur_departure = HUB.objects.get(hub_id=(int(order_data['dep_hub_id'])))
         if order_data['dest_hub_id'] is not None:
-            order.cur_destination = order_data['dest_hub_id']
-        # Добавить информацию об окончании заказа
+            order.cur_destination = HUB.objects.get(hub_id=(int(order_data['dest_hub_id'])))
         order.save()
-        return HttpResponse("<h1>Success</h1>")
+        return HttpResponse("<h1>Successfully added new order data to DB.</h1>")
+
+    # Отправка данных по конкретному заказу
     elif request.method == "GET":
         order = ORDER.objects.filter(id=order_id)
         order_json = {"weight": order.weight,
@@ -88,98 +57,86 @@ def update_order(request, order_id):
         return HttpResponse(order_json, content_type="application/json")
 
 
-def get_drone_locations(request):
+@csrf_exempt
+def manage_drone_fleet(request):
+
+    # Передача данных о текущих параметрах всех беспилотных аппаратов, находящихся в воздухе в данный момент
     if request.method == "GET":
-        screen_data = request.GET
-        #drones = BPLA.objects.filter(latitude__gte=screen_data.less_latitude
-        #                             ).filter(latitude__lte=screen_data.more_latitude
-        #                             ).filter(longitude__gte=screen_data.less_longitude
-        #                             ).filter(longitude__lte=screen_data.more_longitude)
-        drones = BPLA.objects.all()
-        drone_data = dict()
-        for drone in drones:
-            drone_data.update({drone.id: [drone.latitude, drone.longitude, drone.speed, drone.azimuth]})
-        drone_data = json.dumps(drone_data)
-        return HttpResponse(drone_data, content_type="application/json")
+        drone_fleet = BPLA.objects.all()
+        drone_fleet_params = dict()
+        for uav in drone_fleet:
+            drone_fleet_params.update({int(uav.id): {'id': uav.id,
+                                                     'lat': uav.latitude,
+                                                     'lon': uav.longitude,
+                                                     'speed': uav.speed,
+                                                     'azimuth': uav.azimuth}})
+        return HttpResponse(json.dumps(drone_fleet_params), content_type="application/json")
+
+    # Добавление нового беспилотного аппарата в БД
+    elif request.method == "POST":
+        uav_params = request.POST
+        database.create_uav(uav_params)
+        return HttpResponse("<h1>Successfully added new UAV</h1>")
+
+    # Удаление всех беспилотных аппаратов, находящихся в воздухе в данный момент
+    elif request.method == "DELETE":
+        BPLA.objects.all().delete()
+        return HttpResponse("<h1>Successfully erased all active UAVs.</h1>")
+
+    # Обновление параметров всех находящихся в работе в данный момент времени беспилотных аппаратов
+    elif request.method == "PUT":
+        uav_updated_params = ast.literal_eval(request.body.decode('utf-8'))
+        for uav in BPLA.objects.all():
+            uav.speed = uav_updated_params[uav.id]['speed']
+            uav.latitude = uav_updated_params[uav.id]['latitude']
+            uav.longitude = uav_updated_params[uav.id]['longitude']
+            uav.azimuth = uav_updated_params[uav.id]['azimuth']
+            uav.save()
+        return HttpResponse("<h1>Successfully updated all uav data.</h1>")
 
 
 @csrf_exempt
-def manage_graph(request):
-    if request.method == "POST":
-        new_hub_data = request.POST
-        print(new_hub_data)
-        new_hub = HUB(type=new_hub_data['type'],
-                      workload=new_hub_data['workload'],
-                      latitude=new_hub_data['latitude'],
-                      longitude=new_hub_data['longitude'])
-        new_hub.save()
-        return HttpResponse("<h1>Success</h1>")
+def manage_single_uav(request, uav_id):
+
+    # Обовление параметров конкретного беспилотного аппарата
+    if request.method == "PUT":
+        uav_updated_params = ast.literal_eval(request.body.decode('utf-8'))
+        uav = BPLA.objects.get(id=uav_id)
+        uav.speed = uav_updated_params['speed']
+        uav.latitude = uav_updated_params['latitude']
+        uav.longitude = uav_updated_params['longitude']
+        uav.azimuth = uav_updated_params['azimuth']
+        uav.save()
+        return HttpResponse("<h1>Successfully updated uav data.</h1>")
+
+    # Удаление конкретного беспилотного аппарата
     elif request.method == "DELETE":
-        hub_data = request.DELETE
-        HUB.objects.filter(id=hub_data.hub_id).delete()
-        return HttpResponse("<h1>Success</h1>")
-    elif request.method == "GET":
-        new_hub_data = request.GET
-        print(new_hub_data)
-        new_hub = HUB(type=new_hub_data['type'],
-                      workload=new_hub_data['workload'],
-                      latitude=new_hub_data['latitude'],
-                      longitude=new_hub_data['longitude'])
-        new_hub.save()
-        return HttpResponse("<h1>Success</h1>")
-        #hub_data = request.GET
-        #hub = HUB.objects.filter(id=hub_data['hub_id'])
-        #hub_data = {'type': hub.type, 'workload': hub.workload, 'latitude': hub.latitude, 'longitude': hub.longitude}
-        #response = json.dumps(hub_data)
-        #return HttpResponse(response, content_type="application/json")
+        uav = BPLA.objects.get(id=uav_id)
+        uav.delete()
+        return HttpResponse("<h1>Successfully deleted uav from DB.</h1>")
 
-def add_drone(cur_hub, next_hub):
-    cur_hub_data = HUB.objects.filter(id=cur_hub)
-    dest_hub_data = HUB.objects.filter(id=next_hub)
-    # pi - число pi, rad - радиус сферы (Земли)
-    rad = 6372795
 
-    # координаты двух точек
-    llat1 = float(cur_hub_data.latitude)
-    llong1 = float(cur_hub_data.longitude)
+@csrf_exempt
+def manage_hubs(request):
 
-    llat2 = float(dest_hub_data.latitude)
-    llong2 = float(dest_hub_data.longitude)
+    # Создание в БД хабов для кейса Якутска в режиме пресета
+    if request.method == "POST":
+        database.manual_hubs_creation()
+        return HttpResponse("Successfully added hubs data to DB.")
 
-    # в радианах
-    lat1 = llat1 * math.pi / 180.
-    lat2 = llat2 * math.pi / 180.
-    long1 = llong1 * math.pi / 180.
-    long2 = llong2 * math.pi / 180.
+    # Удаление всех данных хабов из БД
+    elif request.method == "DELETE":
+        HUB.objects.all().delete()
+        return HttpResponse("Successfully erased all hub data.")
 
-    # косинусы и синусы широт и разницы долгот
-    cl1 = math.cos(lat1)
-    cl2 = math.cos(lat2)
-    sl1 = math.sin(lat1)
-    sl2 = math.sin(lat2)
-    delta = long2 - long1
-    cdelta = math.cos(delta)
-    sdelta = math.sin(delta)
 
-    # вычисление начального азимута
-    x = (cl1 * sl2) - (sl1 * cl2 * cdelta)
-    y = sdelta * cl2
-    z = math.degrees(math.atan(-y / x))
-
-    if x < 0:
-        z = z + 180.
-
-    z2 = (z + 180.) % 360. - 180.
-    z2 = - math.radians(z2)
-    anglerad2 = z2 - ((2 * math.pi) * math.floor((z2 / (2 * math.pi))))
-    angledeg = (anglerad2 * 180.) / math.pi
-
-    new_drone = BPLA(board_number='one',
-                     type='small',
-                     capacity=500,
-                     speed=20.0,
-                     latitude=cur_hub_data.latitude,
-                     longitude=cur_hub_data.longitude,
-                     azimuth=angledeg)
-    new_drone.save()
-    return new_drone.id
+def manage_single_hub(request, hub_id):
+    # Отправка данных по конкретному хабу
+    if request.method == "GET":
+        hub = HUB.objects.get(hub_id=hub_id)
+        hub_data = {'id': int(hub.hub_id),
+                    'type': hub.type,
+                    'workload': hub.workload,
+                    'latitude': hub.latitude,
+                    'longitude': hub.longitude}
+        return HttpResponse(json.dumps(hub_data), content_type="application/json")

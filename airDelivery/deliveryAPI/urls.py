@@ -1,12 +1,10 @@
 from django.urls import path
-from django.urls import re_path
 from . import views
 
 urlpatterns = [
-    path('', views.index),
     path('orders', views.manage_orders),
-    path('drones/<int:drone_id>/', views.manage_drone),
-    path('orders/<int:order_id>/', views.update_order),
-    path('drones', views.get_drone_locations),
-    path('hubs', views.manage_graph)
+    path('drones/<int:drone_id>/', views.manage_single_uav),
+    path('orders/<int:order_id>/', views.manage_single_order),
+    path('drones', views.manage_drone_fleet),
+    path('hubs', views.manage_hubs)
 ]
