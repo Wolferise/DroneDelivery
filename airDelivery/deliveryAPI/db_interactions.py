@@ -11,6 +11,8 @@ def create_order(order_params, order_track):
                       track=track_string,
                       start_time=datetime.datetime.now())
     new_order.save()
+    new_order.order_id = new_order.id
+    new_order.save()
     return new_order
 
 
@@ -21,26 +23,25 @@ def create_uav(uav_params):
                    speed=uav_params['speed'],
                    latitude=uav_params['latitude'],
                    longitude=uav_params['longitude'],
-                   azimuth=uav_params['azimuth'])
+                   azimuth=uav_params['azimuth'],
+                   departure_hub=uav_params['departure_hub'],
+                   destination_hub=uav_params['destination_hub'],
+                   lat_delta=uav_params['lat_delta'],
+                   long_delta=uav_params['long_delta'])
     new_uav.save()
 
 
 def manual_hubs_creation():
-    new_hub_data = {"type": [2, 1, 0, 0, 0,
-                             1, 0, 0, 0, 0,
-                             1, 0, 0, 0, 0],
-                    "workload": [1, 1, 1, 1, 1,
-                                 1, 1, 1, 1, 1,
-                                 1, 1, 1, 1, 1],
-                    "latitude": [62.027116, 62.192133, 62.188151, 62.221784, 62.257617,
-                                 62.530460, 62.585172, 62.627082, 62.665896, 62.680782,
-                                 61.536701, 61.614186, 61.484245, 61.535072, 61.486290],
-                    "longitude": [129.731981, 130.713196, 130.673728, 130.684686, 130.720085,
-                                  129.762779, 129.770292, 129.714927, 129.704122, 129.911464,
-                                  129.182589, 129.228230, 129.148212, 129.411281, 129.320305],
-                    "hub_id": [0, 1, 2, 3, 4,
-                               5, 6, 7, 8, 9,
-                               10, 11, 12, 13, 14]}
+    new_hub_data = {"type": [], "workload": [],  "latitude": [], "longitude": [], "hub_id": []}
+    f = open('deliveryAPI/validated_hubs.txt')
+    for line in f:
+        data = line.split()
+        new_hub_data["type"].append(int(data[0]))
+        new_hub_data["workload"].append(1)
+        new_hub_data["latitude"].append(float(data[2]))
+        new_hub_data["longitude"].append(float(data[1]))
+        new_hub_data["hub_id"].append(int(data[3]))
+
     for i in range(len(new_hub_data['type'])):
         new_hub = HUB(type=new_hub_data['type'][i],
                       workload=new_hub_data['workload'][i],
@@ -48,3 +49,4 @@ def manual_hubs_creation():
                       longitude=new_hub_data['longitude'][i],
                       hub_id=new_hub_data['hub_id'][i])
         new_hub.save()
+        print(new_hub.hub_id)

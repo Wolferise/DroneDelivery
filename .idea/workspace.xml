@@ -3,9 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="40ff5ee4-804a-43c0-a74c-381fd9083f7d" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/airDelivery/deliveryAPI/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/airDelivery/deliveryAPI/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/airDelivery/deliveryAPI/requests.py" beforeDir="false" afterPath="$PROJECT_DIR$/airDelivery/deliveryAPI/requests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/airDelivery/deliveryAPI/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/airDelivery/deliveryAPI/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/airDelivery/deliveryAPI/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/airDelivery/deliveryAPI/views.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -29,6 +26,7 @@
     <ConfirmationsSetting value="2" id="Add" />
   </component>
   <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RunDashboard">

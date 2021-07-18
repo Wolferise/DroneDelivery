@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-2%r#+$%-)#n=0da!0*!n#r97+xpxfg9)w*bv*j6iw_9z6j5+=*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.10.3', '127.0.0.1']
+ALLOWED_HOSTS = ['192.168.10.3', '127.0.0.1', '26.77.72.147']
 
 
 # Application definition
@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ['192.168.10.3', '127.0.0.1']
 INSTALLED_APPS = [
     'main',
     'deliveryAPI',
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +44,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -50,6 +53,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'airDelivery.urls'
 
