@@ -6,25 +6,17 @@ from . import microservice_messages as messages
 from django.views.decorators.csrf import csrf_exempt
 from . import db_interactions as database
 import requests
-
+from ast import literal_eval
 
 @csrf_exempt
 def manage_orders(request):
     # Добавление нового заказа
     if request.method == "POST":
-        print(request.body)
-        order_params = json.loads(request.body)
+        print("AAAAAAAAAAAAAAAAAAAA: ", request.body)
+        order_params = eval(json.loads(request.body))
         print(order_params)
-        # Построение маршрута заказа математическим модулем
-        try:
-            track = messages.get_order_track_from_math_module(order_params['weight'],
-                                                              order_params['first_hub'],
-                                                              order_params['last_hub'])
-        except BaseException:
-            print('матмодуль в отрубе')
-            return HttpResponse(json.dumps({'result': 'error'}), content_type="application/json")
         # Запись заказа в БД
-        new_order = database.create_order(order_params, track)
+        new_order = database.create_order(order_params)
         print("заказ создан", new_order.order_id)
         # Передача данных о заказе для дальнейшей обработки другими модулями
         messages.start_shipping_message(new_order.cur_departure, new_order.order_id, new_order.track)
@@ -235,7 +227,7 @@ def manage_uav_track(request, drone_id):
 def apply_acceleration(request):
     if request.method == "POST":
         acceleration = json.loads(request.body)
-        request_url = "26.77.72.147:8000/api/acceleration"
+        request_url = "http://45.79.251.166:8000/api/acceleration"
         request_body = {'multiplier': acceleration['multiplier']}
         requests.post(request_url, json=json.dumps(request_body))
         return HttpResponse('success')

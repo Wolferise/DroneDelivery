@@ -2,11 +2,11 @@ from .models import ORDER, BPLA, HUB
 import datetime
 
 
-def create_order(order_params, order_track):
-    track_string = str(order_track)
+def create_order(order_params):
+    track_string = str(order_params['track'])
     new_order = ORDER(weight=order_params['weight'],
                       cur_departure=HUB.objects.get(hub_id=(int(order_params['first_hub']))),
-                      cur_destination=HUB.objects.get(hub_id=(int(order_track["Product_path"][1]["HubID"]))),
+                      cur_destination=HUB.objects.get(hub_id=(int(order_params['track']["Product_path"][1]["HubID"]))),
                       bpla=None,
                       track=track_string,
                       start_time=datetime.datetime.now())
@@ -41,10 +41,9 @@ def manual_hubs_creation():
         new_hub_data["latitude"].append(float(data[2]))
         new_hub_data["longitude"].append(float(data[1]))
         new_hub_data["hub_id"].append(int(data[3]))
-
     for i in range(len(new_hub_data['type'])):
         new_hub = HUB(type=new_hub_data['type'][i],
-                      workload=new_hub_data['workload'][i],
+                      workload=new_hub_data['workload'][0],
                       latitude=new_hub_data['latitude'][i],
                       longitude=new_hub_data['longitude'][i],
                       hub_id=new_hub_data['hub_id'][i])

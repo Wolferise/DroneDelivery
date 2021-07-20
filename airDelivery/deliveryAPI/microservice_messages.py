@@ -1,9 +1,9 @@
 import requests
 import json
 
-math_module_url = "http://26.108.74.21"
-math_module_port = "80"
-hub_url = "http://26.68.12.236"
+math_module_url = "http://78.107.239.174"
+math_module_port = "10000"
+hub_url = "http://78.107.239.174"
 hub_base_port = "8000"
 
 
@@ -16,8 +16,9 @@ def get_order_track_from_math_module(order_weight, departure_point, destination_
 
 
 def start_shipping_message(hub, order_id, track):
+    print("shipping started")
     port = str(int(hub_base_port) + int(hub.hub_id))
-    request_url = hub_url + ":" + port + "/api/orders"
+    request_url = hub_url + ":" + port
     request_body = {'order_id': int(order_id), 'order_track': track}
     result = requests.post(request_url, json=json.dumps(request_body))
     print('ответ хаба', result)
