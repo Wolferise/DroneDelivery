@@ -14,5 +14,6 @@ urlpatterns = [
     path('acceleration', views.apply_acceleration),
     path('statistics', views.get_statistics),
     path('statistics/new', views.create_statistics),
-    path('orders/<int:order_id>/finish', views.order_finishing)
+    path('orders/<int:order_id>/finish', views.order_finishing),
+    path('time')
 ]

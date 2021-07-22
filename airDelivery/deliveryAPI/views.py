@@ -262,6 +262,12 @@ def get_statistics(request):
                          'uavs': uavs}
         print(response_body)
         return HttpResponse(json.dumps(response_body), content_type="application/json")
+    elif request.method == "DELETE":
+        statistics = STATISTICS.objects.all()[0]
+        statistics.total_weight_delivered = 0
+        statistics.total_distance_travelled = 0
+        statistics.save()
+        return HttpResponse('success')
 
 
 @csrf_exempt
