@@ -269,3 +269,13 @@ def create_statistics(request):
                             total_distance_travelled=0)
     statistics.save()
     return HttpResponse('success')
+
+
+@csrf_exempt
+def return_system_state(request):
+    if request.method == "GET":
+        timestamp = request.GET['timestamp']
+        request_url = "http://45.79.251.166:8000/api/timestamp"
+        request_body = {'timestamp': timestamp}
+        system_state = requests.get(request_url, json=json.dumps(request_body))
+        return HttpResponse(json.dumps(system_state), content_type="application/json")
