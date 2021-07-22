@@ -1,4 +1,4 @@
-#!/Users/ilya/Desktop/DroneDelivery/venv/bin/python
+#!/code/venv/bin/python3
 # When the django-admin.py deprecation ends, remove this script.
 import warnings
 
